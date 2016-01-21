@@ -46,7 +46,7 @@ module.exports = function(grunt) {
         var async = require('async');
         var childProcessExec = require('child_process').exec;
         var extend = require('extend');
-        
+
         var defaults = {
             current_symlink: 'current',
             port: 22,
@@ -54,8 +54,7 @@ module.exports = function(grunt) {
             max_buffer: 200 * 1024,
             release_subdir: '/',
             release_root: 'releases',
-            tag: timestamp,
-            exclude: []
+            tag: timestamp
         };
 
         var options = extend({}, defaults, grunt.config.get('environments').options,
@@ -96,9 +95,9 @@ module.exports = function(grunt) {
         var execCommands = function(options, connection){
             var execLocal = function(cmd, next) {
             	var execOptions = {
-            		maxBuffer: options.max_buffer	
+            		maxBuffer: options.max_buffer
             	};
-            	
+
                 childProcessExec(cmd, execOptions, function(err, stdout, stderr){
                     grunt.log.debug(cmd);
                     grunt.log.debug('stdout: ' + stdout);
@@ -141,18 +140,11 @@ module.exports = function(grunt) {
               childProcessExec('tar --version', function (error, stdout, stderr) {
                 if (!error) {
                   var isGnuTar = stdout.match(/GNU tar/);
-                  var command = "tar -czvf ./deploy.tgz";
-                  
-                  if(options.exclude.length) {
-                    options.exclude.forEach(function(exclusion) {
-                      command += ' --exclude=' + exclusion;
-                    });
-                  }
-
+                  var command;
                   if (isGnuTar) {
-                    command += " --exclude=deploy.tgz --ignore-failed-read --directory=" + options.local_path + " .";
+                    command = "tar -czvf ./deploy.tgz --ignore-failed-read --directory=" + options.local_path + " . --exclude=deploy.tgz";
                   } else {
-                    command += " --directory=" + options.local_path + " .";
+                    command = "tar -czvf ./deploy.tgz --directory=" + options.local_path + " .";
                   }
 
                   grunt.log.subhead('--------------- ZIPPING FOLDER');
@@ -185,21 +177,29 @@ module.exports = function(grunt) {
                 execRemote(command, options.debug, callback);
             };
 
-            var scpBuild = function(callback) {
-                var build = (options.zip_deploy) ? 'deploy.tgz' : options.local_path;
-                grunt.log.subhead('--------------- UPLOADING NEW BUILD');
-                grunt.log.debug('SCP FROM LOCAL: ' + build
-                    + '\n TO REMOTE: ' + releasePath);
-                client.scp(build, {
-                    path: releasePath
-                }, function (err) {
-                    if (err) {
-                        grunt.log.errorlns(err);
-                    } else {
-                        grunt.log.subhead('--- DONE UPLOADING');
-                        callback();
-                    }
-                });
+            //var scpBuild = function(callback) {
+            //    var build = (options.zip_deploy) ? 'deploy.tgz' : options.local_path;
+            //    grunt.log.subhead('--------------- UPLOADING NEW BUILD');
+            //    grunt.log.debug('SCP FROM LOCAL: ' + build
+            //        + '\n TO REMOTE: ' + releasePath);
+            //    client.scp(build, {
+            //        path: releasePath
+            //    }, function (err) {
+            //        if (err) {
+            //            grunt.log.errorlns(err);
+            //        } else {
+            //            grunt.log.subhead('--- DONE UPLOADING');
+            //            callback();
+            //        }
+            //    });
+            //};
+
+            var tarBuild = function(callback) {
+              var remote_string = 'ssh ' + options.username + '@' + options.host + ' -p' + options.port + ' "tar -C ' + options.deploy_path + '/releases/' + timestamp + '/' + ' -jxf -"';
+              var command = 'tar -C ' + options.local_path + ' -jcf - ./ | ' + remote_string;
+              grunt.log.subhead('UPLOADING NEW BUILD');
+              grunt.log.writeln('>> ' + command);
+              execLocal(command, callback);
             };
 
             var unzipOnRemote = function(callback) {
@@ -277,7 +277,8 @@ module.exports = function(grunt) {
                 onBeforeDeploy,
                 zipForDeploy,
                 createReleases,
-                scpBuild,
+                //scpBuild,
+                tarBuild,
                 unzipOnRemote,
                 updateSymlink,
                 onAfterDeploy,
@@ -289,4 +290,6 @@ module.exports = function(grunt) {
             });
         };
     });
+};
+
 };
