@@ -1,3 +1,4 @@
+# Forked from original repo and modified to use tar for deploy instead of scp client (https://github.com/dasuchin/grunt-ssh-deploy/pull/17)
 # grunt-ssh-deploy (Version: 0.4.0)
 
 > SSH Deployment for Grunt using [ssh2](https://github.com/mscdex/ssh2).
