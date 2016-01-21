@@ -291,5 +291,3 @@ module.exports = function(grunt) {
         };
     });
 };
-
-};
